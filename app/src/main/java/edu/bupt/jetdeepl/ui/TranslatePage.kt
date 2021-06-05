@@ -1,6 +1,10 @@
 package edu.bupt.jetdeepl.ui
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,27 +36,29 @@ import androidx.compose.material.TextField
 import androidx.compose.material.TextFieldDefaults
 import androidx.compose.material.rememberModalBottomSheetState
 import androidx.compose.material.rememberScaffoldState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.TextStyle
 import edu.bupt.jetdeepl.R
 import edu.bupt.jetdeepl.ui.theme.inputHint
 import edu.bupt.jetdeepl.ui.theme.toggleLangBackground
 import edu.bupt.jetdeepl.ui.theme.translateColor
+import kotlinx.coroutines.launch
 
 
 @ExperimentalMaterialApi
@@ -70,7 +76,7 @@ fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
         }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            SelectLanguageBar()
+            SelectLanguageBar(viewModel)
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
@@ -275,8 +281,27 @@ fun ColumnScope.InputBlock(viewModel: MainViewModel) {
     }
 }
 
+var isFirst = true
 @Composable
-fun SelectLanguageBar() {
+fun SelectLanguageBar(viewModel: MainViewModel) {
+    var rotateAngle = remember { Animatable(0f) }
+    var textAlpha = remember { Animatable(1f) }
+    LaunchedEffect(viewModel.flipToggle) {
+        if (isFirst){
+            isFirst = false
+            return@LaunchedEffect
+        }
+        launch {
+            rotateAngle.animateTo(if (viewModel.flipToggle) 180f else 0f, tween(1000))
+        }
+        launch {
+            textAlpha.animateTo(0f, tween(500))
+            var tempLanguage = viewModel.displaySourceLanguage
+            viewModel.displaySourceLanguage = viewModel.displayTargetLanguage
+            viewModel.displayTargetLanguage = tempLanguage
+            textAlpha.animateTo(1f, tween(500))
+        }
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
@@ -294,9 +319,10 @@ fun SelectLanguageBar() {
                 .clip(RoundedCornerShape(20.dp))
         ) {
             Text(
-                text = "中文",
+                text = viewModel.displaySourceLanguage,
                 fontSize = 18.sp,
-                fontWeight = FontWeight.W900
+                fontWeight = FontWeight.W900,
+                modifier = Modifier.alpha(textAlpha.value)
             )
         }
         Box(
@@ -305,14 +331,19 @@ fun SelectLanguageBar() {
                 .width(40.dp)
                 .height(40.dp)
                 .clip(RoundedCornerShape(50))
-                .background(toggleLangBackground),
+                .background(toggleLangBackground)
+                .clickable {
+                    viewModel.flipLanguage()
+                },
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_swap),
                 contentDescription = "swap",
                 tint = Color.White,
-                modifier = Modifier.padding(5.dp)
+                modifier = Modifier
+                    .padding(5.dp)
+                    .rotate(rotateAngle.value)
             )
         }
         Button(
@@ -324,9 +355,10 @@ fun SelectLanguageBar() {
                 .clip(RoundedCornerShape(20.dp))
         ) {
             Text(
-                text = "英文",
+                text = viewModel.displayTargetLanguage,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.W900,
+                modifier = Modifier.alpha(textAlpha.value)
             )
         }
     }

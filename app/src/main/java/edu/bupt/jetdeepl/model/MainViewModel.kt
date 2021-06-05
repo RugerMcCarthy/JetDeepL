@@ -1,5 +1,10 @@
 package edu.bupt.jetdeepl.model
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -7,6 +12,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.bupt.jetdeepl.data.allLangs
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.collect
@@ -20,18 +26,20 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-import java.util.concurrent.Flow
 
 class MainViewModel: ViewModel() {
     var displayOutput by mutableStateOf("")
     var displayInput by mutableStateOf("")
-    var sourceLanguage by mutableStateOf(allLangs["英语"])
-    var targetLanguage by mutableStateOf(allLangs["中文"])
+    var displaySourceLanguage by mutableStateOf("英文")
+    var displayTargetLanguage by mutableStateOf("中文")
+    var flipToggle by mutableStateOf(false)
+    private var sourceLanguageCode by mutableStateOf(allLangs[displaySourceLanguage])
+    private var targetLanguageCode by mutableStateOf(allLangs[displayTargetLanguage])
     private val client = OkHttpClient()
 
     private fun translateByCrawler(originWord: String, translateFlow: MutableSharedFlow<String>){
         viewModelScope.launch(Dispatchers.IO){
-            val body = "{\"jsonrpc\":\"2.0\",\"method\": \"LMT_handle_jobs\",\"params\":{\"jobs\":[{\"kind\":\"default\",\"raw_en_sentence\":\"$originWord\",\"raw_en_context_before\":[],\"raw_en_context_after\":[],\"preferred_num_beams\":4,\"quality\":\"fast\"}],\"lang\":{\"user_preferred_langs\":[\"PL\",\"RU\",\"FR\",\"SL\",\"DE\",\"JA\",\"HU\",\"IT\",\"EN\",\"ZH\",\"ES\"],\"source_lang_user_selected\":\"${sourceLanguage}\",\"target_lang\":\"${targetLanguage}\"},\"priority\":-1,\"commonJobParams\":{\"formality\":null},\"timestamp\":1621181157844},\"id\":54450008}"
+            val body = "{\"jsonrpc\":\"2.0\",\"method\": \"LMT_handle_jobs\",\"params\":{\"jobs\":[{\"kind\":\"default\",\"raw_en_sentence\":\"$originWord\",\"raw_en_context_before\":[],\"raw_en_context_after\":[],\"preferred_num_beams\":4,\"quality\":\"fast\"}],\"lang\":{\"user_preferred_langs\":[\"PL\",\"RU\",\"FR\",\"SL\",\"DE\",\"JA\",\"HU\",\"IT\",\"EN\",\"ZH\",\"ES\"],\"source_lang_user_selected\":\"${sourceLanguageCode}\",\"target_lang\":\"${targetLanguageCode}\"},\"priority\":-1,\"commonJobParams\":{\"formality\":null},\"timestamp\":1621181157844},\"id\":54450008}"
             val mediaType = "application/json; charset=utf-8".toMediaType()
 
             val request = Request.Builder()
@@ -65,8 +73,8 @@ class MainViewModel: ViewModel() {
     private fun translateByAPI(originWord: String, translateFlow: MutableSharedFlow<String>){
         viewModelScope.launch(Dispatchers.IO){
 
-            val url: String = if(sourceLanguage == "") "https://api-free.deepl.com/v2/translate?auth_key=&text=$originWord&detected_source_language=auto&target_lang=${targetLanguage}"
-            else "https://api-free.deepl.com/v2/translate?auth_key=&text=$originWord&source_lang=${sourceLanguage}&target_lang=${targetLanguage}"
+            val url: String = if(sourceLanguageCode == "") "https://api-free.deepl.com/v2/translate?auth_key=&text=$originWord&detected_source_language=auto&target_lang=${targetLanguageCode}"
+            else "https://api-free.deepl.com/v2/translate?auth_key=&text=$originWord&source_lang=${sourceLanguageCode}&target_lang=${targetLanguageCode}"
 
             val request = Request.Builder()
                 .url(url)
@@ -80,8 +88,8 @@ class MainViewModel: ViewModel() {
 
                         val source_lang = jsonObject?.jsonObject?.get("translations")?.jsonArray?.get(0)?.jsonObject?.get("detected_source_language").toString().replace("\"", "")
 
-                        if(sourceLanguage == ""){
-                            sourceLanguage = allLangs.values.first {
+                        if(sourceLanguageCode == ""){
+                            sourceLanguageCode = allLangs.values.first {
                                 it == source_lang
                             }
                         }
@@ -118,6 +126,11 @@ class MainViewModel: ViewModel() {
                 }
             }
         }
+    }
+
+
+    fun flipLanguage() {
+        flipToggle = !flipToggle
     }
 }
 
