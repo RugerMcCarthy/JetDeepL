@@ -31,6 +31,7 @@ sealed class SelectMode {
 class MainViewModel: ViewModel() {
     var displayOutput by mutableStateOf("")
     var displayInput by mutableStateOf("")
+    var isTranslatSuccess by mutableStateOf(false)
     var displaySourceLanguage by mutableStateOf("英语")
     var displayTargetLanguage by mutableStateOf("中文")
     var flipToggle by mutableStateOf(false)
@@ -73,7 +74,7 @@ class MainViewModel: ViewModel() {
                         val beams = newObject?.jsonObject?.get("beams")
 
                         val resultArray = beams?.jsonArray
-
+                        isTranslatSuccess = true
                         translateFlow.emit(resultArray!!.get(0).jsonObject["postprocessed_sentence"].toString().replace("\"", ""))
                     } else translateFlow.emit("似乎网络出现了点问题～")
                 }
@@ -108,6 +109,7 @@ class MainViewModel: ViewModel() {
 //                            }
 //                        }
                         translateFlow.emit(text.toString().replace("\"", ""))
+                        isTranslatSuccess = true
                     } else{
                         translateByCrawler(originWord, translateFlow)
                     }
@@ -119,9 +121,9 @@ class MainViewModel: ViewModel() {
     }
 
     fun translate() {
+        isTranslatSuccess = false
         var translateFlow = MutableSharedFlow<String>()
         translateByAPI(displayInput, translateFlow)
-
         viewModelScope.launch {
             var waitingJob = launch {
                 var count = 0

@@ -136,7 +136,7 @@ fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldSta
                 fontSize = 20.sp,
                 fontWeight = FontWeight.W500
             )
-            if(viewModel.displayOutput.isNotEmpty()) {
+            if(viewModel.displayOutput.isNotEmpty() && viewModel.isTranslatSuccess) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -437,13 +437,13 @@ fun SelectLanguageSheet(sheetState: ModalBottomSheetState, viewModel: MainViewMo
                 Modifier.fillMaxWidth(),
             ) {
                 stickyHeader { 
-                    Text(text = "全部23种语言", modifier = Modifier
+                    Text(text = "全部${viewModel.displayLanguageList.size}种语言", modifier = Modifier
                         .fillMaxWidth()
                         .background(Color.White)
                         .padding(vertical = 10.dp))
                 }
                 for(language in viewModel.displayLanguageList) {
-                    if (viewModel.currentSelectMode == SelectMode.TARGET && language.isEmpty()) {
+                    if (viewModel.currentSelectMode == SelectMode.TARGET && language == "自动检测") {
                         continue
                     }
                     item { 
@@ -512,7 +512,17 @@ fun SearchLanguageField(viewModel: MainViewModel) {
         },
         trailingIcon = {
             if (viewModel.focusOnSearch) {
-                Icon(painter = painterResource(id = R.drawable.ic_cancel), contentDescription = "cancel")
+                IconButton(
+                    onClick = {
+                        displayLanguageInput = ""
+                        viewModel.displayLanguageList = allLangs.keys.toList()
+                    }
+                ){
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_cancel),
+                        contentDescription = "cancel",
+                    )
+                }
             }
         },
         placeholder = {
