@@ -1,5 +1,7 @@
 package edu.bupt.jetdeepl.model
 
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.ModalBottomSheetState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -22,7 +24,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
-
+sealed class SelectMode {
+    object SOURCE: SelectMode()
+    object TARGET: SelectMode()
+}
 class MainViewModel: ViewModel() {
     var displayOutput by mutableStateOf("")
     var displayInput by mutableStateOf("")
@@ -37,7 +42,10 @@ class MainViewModel: ViewModel() {
     private val targetLanguageCode
         get() = allLangs[displayTargetLanguage]
     private val client = OkHttpClient()
+    var currentSelectMode:SelectMode by mutableStateOf(SelectMode.SOURCE)
+        private set
 
+    // Crawler 方式
     private fun translateByCrawler(originWord: String, translateFlow: MutableSharedFlow<String>){
         viewModelScope.launch(Dispatchers.IO){
             val body = "{\"jsonrpc\":\"2.0\",\"method\": \"LMT_handle_jobs\",\"params\":{\"jobs\":[{\"kind\":\"default\",\"raw_en_sentence\":\"$originWord\",\"raw_en_context_before\":[],\"raw_en_context_after\":[],\"preferred_num_beams\":4,\"quality\":\"fast\"}],\"lang\":{\"user_preferred_langs\":[\"PL\",\"RU\",\"FR\",\"SL\",\"DE\",\"JA\",\"HU\",\"IT\",\"EN\",\"ZH\",\"ES\"],\"source_lang_user_selected\":\"${sourceLanguageCode}\",\"target_lang\":\"${targetLanguageCode}\"},\"priority\":-1,\"commonJobParams\":{\"formality\":null},\"timestamp\":1621181157844},\"id\":54450008}"
@@ -148,6 +156,31 @@ class MainViewModel: ViewModel() {
 
     fun requestCopyToClipboard() {
         requestCopyToClipboardData.value = displayOutput
+    }
+
+    fun changeSelectMode(selectMode: SelectMode) {
+        currentSelectMode = selectMode
+    }
+
+    fun isSelectedLanguage(languageName: String): Boolean {
+        return when (currentSelectMode) {
+            SelectMode.SOURCE -> {
+                displaySourceLanguage == languageName
+            }
+            SelectMode.TARGET -> {
+                displayTargetLanguage == languageName
+            }
+        }
+    }
+    fun selectLanguage(languageName: String) {
+        when (currentSelectMode) {
+            SelectMode.SOURCE -> {
+                displaySourceLanguage = languageName
+            }
+            SelectMode.TARGET -> {
+                displayTargetLanguage = languageName
+            }
+        }
     }
 }
 

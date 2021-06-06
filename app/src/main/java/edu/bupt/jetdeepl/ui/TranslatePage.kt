@@ -5,12 +5,14 @@ import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -20,10 +22,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.ScaffoldState
 import androidx.compose.runtime.Composable
 import edu.bupt.jetdeepl.model.MainViewModel
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.BottomSheetState
 import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Divider
@@ -32,6 +38,7 @@ import androidx.compose.material.Icon
 import androidx.compose.material.IconButton
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.ModalBottomSheetLayout
+import androidx.compose.material.ModalBottomSheetState
 import androidx.compose.material.ModalBottomSheetValue
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
@@ -44,6 +51,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
@@ -57,8 +65,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
+import androidx.lifecycle.viewModelScope
 import edu.bupt.jetdeepl.R
+import edu.bupt.jetdeepl.data.allLangs
+import edu.bupt.jetdeepl.model.SelectMode
 import edu.bupt.jetdeepl.ui.theme.inputHint
+import edu.bupt.jetdeepl.ui.theme.searchLanguage
 import edu.bupt.jetdeepl.ui.theme.toggleLangBackground
 import edu.bupt.jetdeepl.ui.theme.translateColor
 import kotlinx.coroutines.CoroutineScope
@@ -68,23 +80,22 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 
+@ExperimentalFoundationApi
 @ExperimentalAnimationApi
 @ExperimentalMaterialApi
 @Composable
 fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
-    val state = rememberModalBottomSheetState(ModalBottomSheetValue.Hidden)
+    val sheetState = rememberModalBottomSheetState(ModalBottomSheetValue.Hidden)
     val scope = rememberCoroutineScope()
     ModalBottomSheetLayout(
-        sheetState = state,
-        sheetElevation = 0.dp,
-        sheetBackgroundColor = MaterialTheme.colors.surface.copy(alpha = 0.32f),
-        sheetShape = RoundedCornerShape(20.dp),
+        sheetState = sheetState,
+        sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
         sheetContent = {
-            Text("Hello World")
+            SelectLanguageSheet(sheetState, viewModel)
         }
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            SelectLanguageBar(viewModel)
+            SelectLanguageBar(sheetState, viewModel)
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
@@ -94,9 +105,9 @@ fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
                     Modifier
                         .fillMaxSize()
                         .padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    InputBlock(viewModel, scaffoldState, scope)
+                    InputBlock(viewModel, scaffoldState)
                     Divider(color = translateColor, thickness = 2.dp)
-                    OutputBlock(viewModel, scaffoldState, scope)
+                    OutputBlock(viewModel, scaffoldState)
                 }
             }
         }
@@ -105,7 +116,7 @@ fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
 
 @ExperimentalAnimationApi
 @Composable
-fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldState, scope: CoroutineScope) {
+fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
     Box(
         modifier = Modifier
             .padding(top = 30.dp)
@@ -171,11 +182,11 @@ fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldSta
                         IconButton(
                             onClick = {
                                 if (viewModel.displayOutput.isEmpty()) {
-                                    scope.launch {
+                                    viewModel.viewModelScope.launch {
                                         scaffoldState.snackbarHostState.showSnackbar("待复制内容为空")
                                     }
                                 } else {
-                                    scope.launch {
+                                    viewModel.viewModelScope.launch {
                                         scaffoldState.snackbarHostState.showSnackbar("内部已复制到剪贴板")
                                     }
                                     viewModel.requestCopyToClipboard()
@@ -198,7 +209,7 @@ fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldSta
 }
 
 @Composable
-fun ColumnScope.InputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldState, scope: CoroutineScope) {
+fun ColumnScope.InputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
     Box(
         modifier = Modifier
             .weight(0.5f)
@@ -280,7 +291,7 @@ fun ColumnScope.InputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldStat
                     Button(
                         onClick = {
                             if (viewModel.displayInput.isEmpty()) {
-                                scope.launch {
+                                viewModel.viewModelScope.launch {
                                     scaffoldState.snackbarHostState.showSnackbar("输入内容为空")
                                 }
                             } else {
@@ -309,8 +320,9 @@ fun ColumnScope.InputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldStat
 }
 
 var isFirst = true
+@ExperimentalMaterialApi
 @Composable
-fun SelectLanguageBar(viewModel: MainViewModel) {
+fun SelectLanguageBar(sheetState: ModalBottomSheetState, viewModel: MainViewModel) {
     var rotateAngle = remember { Animatable(0f) }
     var textAlpha = remember { Animatable(1f) }
     LaunchedEffect(viewModel.flipToggle) {
@@ -329,6 +341,7 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
             textAlpha.animateTo(1f, tween(500))
         }
     }
+    val scope = rememberCoroutineScope()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
@@ -338,7 +351,12 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
             .padding(10.dp)
     ) {
         Button(
-            onClick = {  },
+            onClick = {
+                viewModel.changeSelectMode(SelectMode.SOURCE)
+                scope.launch {
+                    sheetState.show()
+                }
+            },
             colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.onBackground),
             modifier = Modifier
                 .width(150.dp)
@@ -377,7 +395,12 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
             )
         }
         Button(
-            onClick = {  },
+            onClick = {
+                viewModel.changeSelectMode(SelectMode.TARGET)
+                scope.launch {
+                    sheetState.show()
+                }
+            },
             colors = ButtonDefaults.buttonColors(backgroundColor = MaterialTheme.colors.onBackground),
             modifier = Modifier
                 .width(150.dp)
@@ -395,6 +418,103 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
         }
     }
 }
+
+@ExperimentalMaterialApi
+@ExperimentalFoundationApi
+@Composable
+fun SelectLanguageSheet(sheetState: ModalBottomSheetState, viewModel: MainViewModel) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .padding(top = 25.dp, start = 15.dp, end = 15.dp)
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            SearchLanguageField()
+            Spacer(modifier = Modifier.height(10.dp))
+            LazyColumn(
+                Modifier.fillMaxWidth(),
+            ) {
+                stickyHeader { 
+                    Text(text = "全部23种语言", modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White)
+                        .padding(vertical = 10.dp))
+                }
+                for(language in allLangs) {
+                    if (viewModel.currentSelectMode == SelectMode.TARGET && language.value.isEmpty()) {
+                        continue
+                    }
+                    item { 
+                        SelectLanguageItem(sheetState, viewModel, language)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@ExperimentalMaterialApi
+@Composable
+fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewModel, language: Map.Entry<String, String>) {
+    var scope = rememberCoroutineScope()
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .clickable {
+                viewModel.selectLanguage(language.key)
+                scope.launch {
+                    sheetState.hide()
+                }
+            }
+    ) {
+        Text(
+            text = language.key,
+            color = if (viewModel.isSelectedLanguage(language.key)) translateColor else Color.Black,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.W500,
+            modifier = Modifier
+                .weight(1f)
+                .wrapContentWidth(Alignment.Start)
+        )
+        if (viewModel.isSelectedLanguage(language.key)) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_selected), contentDescription = "selected",
+                tint = translateColor,
+                modifier = Modifier
+                    .weight(1f)
+                    .wrapContentWidth(Alignment.End)
+            )
+        }
+    }
+}
+
+@Composable
+fun SearchLanguageField() {
+    var displayLanguageInput by remember {mutableStateOf("")}
+    TextField(
+        value = displayLanguageInput,
+        onValueChange = {displayLanguageInput = it},
+        leadingIcon = {
+            Icon(painter = painterResource(id = R.drawable.ic_search), contentDescription = "search")
+        },
+        placeholder = {
+            Text(text = "搜索")
+        },
+        colors = TextFieldDefaults.textFieldColors(
+            backgroundColor = searchLanguage,
+            focusedIndicatorColor = Color.White,
+            unfocusedIndicatorColor = Color.White
+        ),
+        shape = RoundedCornerShape(10.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(50.dp)
+    )
+}
+
+@ExperimentalFoundationApi
 @ExperimentalAnimationApi
 @ExperimentalMaterialApi
 @Preview
@@ -403,3 +523,10 @@ fun TranslateLayoutPreview() {
     TranslateLayout(MainViewModel(), rememberScaffoldState())
 }
 
+@ExperimentalMaterialApi
+@ExperimentalFoundationApi
+@Preview
+@Composable
+fun SelectLanguageSheetPreivew() {
+    SelectLanguageSheet(rememberModalBottomSheetState(ModalBottomSheetValue.Hidden), MainViewModel())
+}
