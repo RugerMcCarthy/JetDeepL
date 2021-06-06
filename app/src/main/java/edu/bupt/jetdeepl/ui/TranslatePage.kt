@@ -1,5 +1,7 @@
 package edu.bupt.jetdeepl.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.ScaffoldState
 import androidx.compose.runtime.Composable
@@ -58,9 +61,14 @@ import edu.bupt.jetdeepl.R
 import edu.bupt.jetdeepl.ui.theme.inputHint
 import edu.bupt.jetdeepl.ui.theme.toggleLangBackground
 import edu.bupt.jetdeepl.ui.theme.translateColor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 
+@ExperimentalAnimationApi
 @ExperimentalMaterialApi
 @Composable
 fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
@@ -86,20 +94,18 @@ fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
                     Modifier
                         .fillMaxSize()
                         .padding(30.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    InputBlock(viewModel)
-                    Divider(
-                        color = translateColor,
-                        thickness = 2.dp
-                    )
-                    OutputBlock(viewModel)
+                    InputBlock(viewModel, scaffoldState, scope)
+                    Divider(color = translateColor, thickness = 2.dp)
+                    OutputBlock(viewModel, scaffoldState, scope)
                 }
             }
         }
     }
 }
 
+@ExperimentalAnimationApi
 @Composable
-fun ColumnScope.OutputBlock(viewModel: MainViewModel) {
+fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldState, scope: CoroutineScope) {
     Box(
         modifier = Modifier
             .padding(top = 30.dp)
@@ -117,60 +123,73 @@ fun ColumnScope.OutputBlock(viewModel: MainViewModel) {
                 fontSize = 20.sp,
                 fontWeight = FontWeight.W500
             )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(0.2f)
-                    .fillMaxHeight()
-            ) {
+            if(viewModel.displayOutput.isNotEmpty()) {
                 Row(
                     modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(0.2f)
                         .fillMaxHeight()
-                        .weight(0.5f)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .weight(0.5f)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = {
 
-                    }) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_volumn),
-                            contentDescription = "volumn",
-                            tint = translateColor)
+                        }) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_volumn),
+                                contentDescription = "volumn",
+                                tint = translateColor)
+                        }
                     }
-                }
-                Row(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .weight(0.5f)
-                        .fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    IconButton(
-                        onClick = {
-                        },
+                    Row(
                         modifier = Modifier
                             .fillMaxHeight()
+                            .weight(0.5f)
+                            .fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_undo),
-                            contentDescription = "undo",
-                            tint = translateColor
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(2.dp))
-                    IconButton(
-                        onClick = {
-                        },
-                        modifier = Modifier
-                            .fillMaxHeight()
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_clipboard),
-                            contentDescription = "clipboard",
-                            tint = translateColor
-                        )
+                        IconButton(
+                            onClick = {
+                                viewModel.clearOutputDisplay()
+                            },
+                            modifier = Modifier
+                                .fillMaxHeight()
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_undo),
+                                contentDescription = "undo",
+                                tint = translateColor
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(2.dp))
+                        IconButton(
+                            onClick = {
+                                if (viewModel.displayOutput.isEmpty()) {
+                                    scope.launch {
+                                        scaffoldState.snackbarHostState.showSnackbar("待复制内容为空")
+                                    }
+                                } else {
+                                    scope.launch {
+                                        scaffoldState.snackbarHostState.showSnackbar("内部已复制到剪贴板")
+                                    }
+                                    viewModel.requestCopyToClipboard()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxHeight()
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_clipboard),
+                                contentDescription = "clipboard",
+                                tint = translateColor
+                            )
+                        }
                     }
                 }
             }
@@ -179,7 +198,7 @@ fun ColumnScope.OutputBlock(viewModel: MainViewModel) {
 }
 
 @Composable
-fun ColumnScope.InputBlock(viewModel: MainViewModel) {
+fun ColumnScope.InputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldState, scope: CoroutineScope) {
     Box(
         modifier = Modifier
             .weight(0.5f)
@@ -244,6 +263,7 @@ fun ColumnScope.InputBlock(viewModel: MainViewModel) {
                 ) {
                     IconButton(
                         onClick = {
+                            viewModel.clearInputDisplay()
                         },
                         modifier = Modifier
                             .fillMaxHeight()
@@ -259,7 +279,14 @@ fun ColumnScope.InputBlock(viewModel: MainViewModel) {
                     Spacer(modifier = Modifier.width(5.dp))
                     Button(
                         onClick = {
-                            viewModel.translate()
+                            if (viewModel.displayInput.isEmpty()) {
+                                scope.launch {
+                                    scaffoldState.snackbarHostState.showSnackbar("输入内容为空")
+                                }
+                            } else {
+                                viewModel.clearOutputDisplay()
+                                viewModel.translate()
+                            }
                         },
                         modifier = Modifier
                             .padding(vertical = 10.dp)
@@ -317,6 +344,7 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
                 .width(150.dp)
                 .fillMaxHeight()
                 .clip(RoundedCornerShape(20.dp))
+
         ) {
             Text(
                 text = viewModel.displaySourceLanguage,
@@ -324,6 +352,8 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
                 fontWeight = FontWeight.W900,
                 modifier = Modifier.alpha(textAlpha.value)
             )
+            Spacer(modifier = Modifier.width(2.dp))
+            Icon(painter = painterResource(id = R.drawable.ic_down_arrow), contentDescription = "down_arrow", Modifier.size(15.dp))
         }
         Box(
             modifier = Modifier
@@ -360,9 +390,12 @@ fun SelectLanguageBar(viewModel: MainViewModel) {
                 fontWeight = FontWeight.W900,
                 modifier = Modifier.alpha(textAlpha.value)
             )
+            Spacer(modifier = Modifier.width(2.dp))
+            Icon(painter = painterResource(id = R.drawable.ic_down_arrow), contentDescription = "down_arrow", Modifier.size(15.dp))
         }
     }
 }
+@ExperimentalAnimationApi
 @ExperimentalMaterialApi
 @Preview
 @Composable

@@ -1,13 +1,9 @@
 package edu.bupt.jetdeepl.model
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import edu.bupt.jetdeepl.data.allLangs
@@ -30,11 +26,16 @@ import java.io.IOException
 class MainViewModel: ViewModel() {
     var displayOutput by mutableStateOf("")
     var displayInput by mutableStateOf("")
-    var displaySourceLanguage by mutableStateOf("英文")
+    var displaySourceLanguage by mutableStateOf("英语")
     var displayTargetLanguage by mutableStateOf("中文")
     var flipToggle by mutableStateOf(false)
-    private var sourceLanguageCode by mutableStateOf(allLangs[displaySourceLanguage])
-    private var targetLanguageCode by mutableStateOf(allLangs[displayTargetLanguage])
+    var requestCopyToClipboardData = MutableLiveData<String>()
+        private set
+
+    private val sourceLanguageCode
+        get() = allLangs[displaySourceLanguage]
+    private val targetLanguageCode
+        get() = allLangs[displayTargetLanguage]
     private val client = OkHttpClient()
 
     private fun translateByCrawler(originWord: String, translateFlow: MutableSharedFlow<String>){
@@ -61,7 +62,7 @@ class MainViewModel: ViewModel() {
                         val resultArray = beams?.jsonArray
 
                         translateFlow.emit(resultArray!!.get(0).jsonObject["postprocessed_sentence"].toString().replace("\"", ""))
-                    } else translateFlow.emit("出现了错误")
+                    } else translateFlow.emit("似乎网络出现了点问题～")
                 }
             }catch(e: IOException){
 
@@ -88,11 +89,11 @@ class MainViewModel: ViewModel() {
 
                         val source_lang = jsonObject?.jsonObject?.get("translations")?.jsonArray?.get(0)?.jsonObject?.get("detected_source_language").toString().replace("\"", "")
 
-                        if(sourceLanguageCode == ""){
-                            sourceLanguageCode = allLangs.values.first {
-                                it == source_lang
-                            }
-                        }
+//                        if(sourceLanguageCode == ""){
+//                            sourceLanguageCode = allLangs.values.first {
+//                                it == source_lang
+//                            }
+//                        }
                         translateFlow.emit(text.toString().replace("\"", ""))
                     } else{
                         translateByCrawler(originWord, translateFlow)
@@ -110,13 +111,18 @@ class MainViewModel: ViewModel() {
 
         viewModelScope.launch {
             var waitingJob = launch {
+                var count = 0
                 while (true) {
                     if (displayOutput == ".....") {
                         displayOutput = "."
                     } else {
                         displayOutput += "."
                     }
-                    delay(300)
+                    delay(500)
+                    count++
+                    if (count == 60) {
+                        translateFlow.emit("似乎网络出现了点问题～")
+                    }
                 }
             }
             launch {
@@ -128,9 +134,20 @@ class MainViewModel: ViewModel() {
         }
     }
 
+    fun clearOutputDisplay() {
+        displayOutput = ""
+    }
+
+    fun clearInputDisplay() {
+        displayInput = ""
+    }
 
     fun flipLanguage() {
         flipToggle = !flipToggle
+    }
+
+    fun requestCopyToClipboard() {
+        requestCopyToClipboardData.value = displayOutput
     }
 }
 
