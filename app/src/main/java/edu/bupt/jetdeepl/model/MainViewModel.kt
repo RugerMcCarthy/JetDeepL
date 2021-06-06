@@ -34,16 +34,21 @@ class MainViewModel: ViewModel() {
     var displaySourceLanguage by mutableStateOf("英语")
     var displayTargetLanguage by mutableStateOf("中文")
     var flipToggle by mutableStateOf(false)
+    var currentSelectMode:SelectMode by mutableStateOf(SelectMode.SOURCE)
+        private set
+    var focusOnSearch by mutableStateOf(false)
+
+    var displayLanguageList by mutableStateOf<List<String>>(
+        allLangs.keys.toList()
+    )
+
     var requestCopyToClipboardData = MutableLiveData<String>()
         private set
-
     private val sourceLanguageCode
         get() = allLangs[displaySourceLanguage]
     private val targetLanguageCode
         get() = allLangs[displayTargetLanguage]
     private val client = OkHttpClient()
-    var currentSelectMode:SelectMode by mutableStateOf(SelectMode.SOURCE)
-        private set
 
     // Crawler 方式
     private fun translateByCrawler(originWord: String, translateFlow: MutableSharedFlow<String>){

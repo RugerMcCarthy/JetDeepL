@@ -58,6 +58,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.focus.isFocused
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
@@ -187,7 +189,7 @@ fun ColumnScope.OutputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldSta
                                     }
                                 } else {
                                     viewModel.viewModelScope.launch {
-                                        scaffoldState.snackbarHostState.showSnackbar("内部已复制到剪贴板")
+                                        scaffoldState.snackbarHostState.showSnackbar("已复制到剪贴板")
                                     }
                                     viewModel.requestCopyToClipboard()
                                 }
@@ -292,7 +294,7 @@ fun ColumnScope.InputBlock(viewModel: MainViewModel, scaffoldState: ScaffoldStat
                         onClick = {
                             if (viewModel.displayInput.isEmpty()) {
                                 viewModel.viewModelScope.launch {
-                                    scaffoldState.snackbarHostState.showSnackbar("输入内容为空")
+                                    scaffoldState.snackbarHostState.showSnackbar("输入内容不能为空哦～")
                                 }
                             } else {
                                 viewModel.clearOutputDisplay()
@@ -429,7 +431,7 @@ fun SelectLanguageSheet(sheetState: ModalBottomSheetState, viewModel: MainViewMo
             .padding(top = 25.dp, start = 15.dp, end = 15.dp)
     ) {
         Column(Modifier.fillMaxWidth()) {
-            SearchLanguageField()
+            SearchLanguageField(viewModel)
             Spacer(modifier = Modifier.height(10.dp))
             LazyColumn(
                 Modifier.fillMaxWidth(),
@@ -440,8 +442,8 @@ fun SelectLanguageSheet(sheetState: ModalBottomSheetState, viewModel: MainViewMo
                         .background(Color.White)
                         .padding(vertical = 10.dp))
                 }
-                for(language in allLangs) {
-                    if (viewModel.currentSelectMode == SelectMode.TARGET && language.value.isEmpty()) {
+                for(language in viewModel.displayLanguageList) {
+                    if (viewModel.currentSelectMode == SelectMode.TARGET && language.isEmpty()) {
                         continue
                     }
                     item { 
@@ -455,7 +457,7 @@ fun SelectLanguageSheet(sheetState: ModalBottomSheetState, viewModel: MainViewMo
 
 @ExperimentalMaterialApi
 @Composable
-fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewModel, language: Map.Entry<String, String>) {
+fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewModel, language: String) {
     var scope = rememberCoroutineScope()
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -463,22 +465,22 @@ fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewMod
             .fillMaxWidth()
             .height(50.dp)
             .clickable {
-                viewModel.selectLanguage(language.key)
+                viewModel.selectLanguage(language)
                 scope.launch {
                     sheetState.hide()
                 }
             }
     ) {
         Text(
-            text = language.key,
-            color = if (viewModel.isSelectedLanguage(language.key)) translateColor else Color.Black,
+            text = language,
+            color = if (viewModel.isSelectedLanguage(language)) translateColor else Color.Black,
             fontSize = 18.sp,
             fontWeight = FontWeight.W500,
             modifier = Modifier
                 .weight(1f)
                 .wrapContentWidth(Alignment.Start)
         )
-        if (viewModel.isSelectedLanguage(language.key)) {
+        if (viewModel.isSelectedLanguage(language)) {
             Icon(
                 painter = painterResource(id = R.drawable.ic_selected), contentDescription = "selected",
                 tint = translateColor,
@@ -491,13 +493,27 @@ fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewMod
 }
 
 @Composable
-fun SearchLanguageField() {
+fun SearchLanguageField(viewModel: MainViewModel) {
     var displayLanguageInput by remember {mutableStateOf("")}
     TextField(
         value = displayLanguageInput,
-        onValueChange = {displayLanguageInput = it},
+        onValueChange = { value ->
+            displayLanguageInput = value
+            viewModel.displayLanguageList = if (value.isEmpty()) {
+                allLangs.keys.toList()
+            } else{
+                allLangs.keys.filter {
+                    it.contains(value)
+                }
+            }
+        },
         leadingIcon = {
             Icon(painter = painterResource(id = R.drawable.ic_search), contentDescription = "search")
+        },
+        trailingIcon = {
+            if (viewModel.focusOnSearch) {
+                Icon(painter = painterResource(id = R.drawable.ic_cancel), contentDescription = "cancel")
+            }
         },
         placeholder = {
             Text(text = "搜索")
@@ -511,6 +527,9 @@ fun SearchLanguageField() {
         modifier = Modifier
             .fillMaxWidth()
             .height(50.dp)
+            .onFocusChanged {
+                viewModel.focusOnSearch = it.isFocused
+            }
     )
 }
 
