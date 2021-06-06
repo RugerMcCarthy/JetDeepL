@@ -1,8 +1,8 @@
 ## :camera_flash: Screenshots
 
 <!-- You can add more screenshots here if you like -->
-<img src="/result/demo1.gif" width="260">
-
+<img src="/result/demo1.gif" width="260">&emsp;
+<img src="/result/demo2.gif" width="260">
 ## License
 
 ```
