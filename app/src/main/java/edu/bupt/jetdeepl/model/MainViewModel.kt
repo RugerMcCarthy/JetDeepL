@@ -24,10 +24,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+
 sealed class SelectMode {
     object SOURCE: SelectMode()
     object TARGET: SelectMode()
 }
+
 class MainViewModel: ViewModel() {
     var displayOutput by mutableStateOf("")
     var displayInput by mutableStateOf("")

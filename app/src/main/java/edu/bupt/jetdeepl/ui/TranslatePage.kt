@@ -1,5 +1,6 @@
 package edu.bupt.jetdeepl.ui
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.animation.core.Animatable
@@ -58,7 +59,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.focus.isFocused
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -68,6 +68,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
 import androidx.lifecycle.viewModelScope
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import edu.bupt.jetdeepl.R
 import edu.bupt.jetdeepl.data.allLangs
 import edu.bupt.jetdeepl.model.SelectMode
@@ -82,6 +83,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
 
+@ExperimentalMaterialApi
+@Composable
+fun ChangeStatusBarColor(sheetState: ModalBottomSheetState) {
+    var systemUiController = rememberSystemUiController()
+    if (sheetState.isVisible) {
+        systemUiController.setStatusBarColor(Color(0xffa8a8a8))
+    } else {
+        systemUiController.setStatusBarColor(Color(0xfff8f8f8))
+    }
+}
+
 @ExperimentalFoundationApi
 @ExperimentalAnimationApi
 @ExperimentalMaterialApi
@@ -89,6 +101,7 @@ import kotlinx.coroutines.runBlocking
 fun TranslateLayout(viewModel: MainViewModel, scaffoldState: ScaffoldState) {
     val sheetState = rememberModalBottomSheetState(ModalBottomSheetValue.Hidden)
     val scope = rememberCoroutineScope()
+    ChangeStatusBarColor(sheetState)
     ModalBottomSheetLayout(
         sheetState = sheetState,
         sheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
@@ -344,6 +357,7 @@ fun SelectLanguageBar(sheetState: ModalBottomSheetState, viewModel: MainViewMode
         }
     }
     val scope = rememberCoroutineScope()
+    var systemUiController = rememberSystemUiController()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
@@ -356,6 +370,9 @@ fun SelectLanguageBar(sheetState: ModalBottomSheetState, viewModel: MainViewMode
             onClick = {
                 viewModel.changeSelectMode(SelectMode.SOURCE)
                 scope.launch {
+                    launch {
+                        systemUiController.setStatusBarColor(Color(0xffa8a8a8))
+                    }
                     sheetState.show()
                 }
             },
@@ -400,6 +417,9 @@ fun SelectLanguageBar(sheetState: ModalBottomSheetState, viewModel: MainViewMode
             onClick = {
                 viewModel.changeSelectMode(SelectMode.TARGET)
                 scope.launch {
+                    launch {
+                        systemUiController.setStatusBarColor(Color(0xffa8a8a8))
+                    }
                     sheetState.show()
                 }
             },
@@ -459,6 +479,7 @@ fun SelectLanguageSheet(sheetState: ModalBottomSheetState, viewModel: MainViewMo
 @Composable
 fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewModel, language: String) {
     var scope = rememberCoroutineScope()
+    var systemUiController = rememberSystemUiController()
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -467,6 +488,9 @@ fun SelectLanguageItem(sheetState: ModalBottomSheetState, viewModel: MainViewMod
             .clickable {
                 viewModel.selectLanguage(language)
                 scope.launch {
+                    launch {
+                        systemUiController.setStatusBarColor(Color(0xfff8f8f8))
+                    }
                     sheetState.hide()
                 }
             }
