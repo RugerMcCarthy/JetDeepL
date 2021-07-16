@@ -7,4 +7,4 @@ dependencyResolutionManagement {
     }
 }
 rootProject.name = "JetDeepL"
-include ':app'
+include(":app")
