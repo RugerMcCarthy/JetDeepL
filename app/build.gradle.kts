@@ -4,6 +4,10 @@ plugins {
     id ("kotlin-kapt")
     id ("dagger.hilt.android.plugin")
 }
+
+val compose_version: String by extra("1.0.0-rc01")
+val accompanist_version: String by extra("0.11.1")
+val hilt_version: String by extra("2.37")
 android {
     compileSdk = 30
     buildToolsVersion("30.0.3")
@@ -39,18 +43,12 @@ android {
         compose = true
     }
     composeOptions {
-        val compose_version: String by extra("1.0.0-beta08")
-        val accompanist_version: String by extra("0.11.1")
-        val hilt_version: String by extra("2.37")
         kotlinCompilerExtensionVersion = compose_version
         kotlinCompilerVersion = "1.4.32"
     }
 }
 
 dependencies {
-    val compose_version: String by extra("1.0.0-beta08")
-    val accompanist_version: String by extra("0.11.1")
-    val hilt_version: String by extra("2.37")
     implementation("com.google.dagger:hilt-android:$hilt_version")
     kapt("com.google.dagger:hilt-android-compiler:$hilt_version")
     implementation("androidx.hilt:hilt-navigation-compose:1.0.0-alpha03")

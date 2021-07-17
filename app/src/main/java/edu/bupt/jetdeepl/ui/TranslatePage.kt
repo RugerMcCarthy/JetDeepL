@@ -567,19 +567,3 @@ fun SearchLanguageField(viewModel: MainViewModel) {
     )
 }
 
-@ExperimentalFoundationApi
-@ExperimentalAnimationApi
-@ExperimentalMaterialApi
-@Preview
-@Composable
-fun TranslateLayoutPreview() {
-    TranslateLayout(MainViewModel(), rememberScaffoldState())
-}
-
-@ExperimentalMaterialApi
-@ExperimentalFoundationApi
-@Preview
-@Composable
-fun SelectLanguageSheetPreivew() {
-    SelectLanguageSheet(rememberModalBottomSheetState(ModalBottomSheetValue.Hidden), MainViewModel())
-}

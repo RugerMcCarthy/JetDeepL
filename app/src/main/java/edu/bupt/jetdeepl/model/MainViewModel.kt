@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.lifecycle.HiltViewModel
 import edu.bupt.jetdeepl.data.allLangs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -24,13 +25,14 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import javax.inject.Inject
 
 sealed class SelectMode {
     object SOURCE: SelectMode()
     object TARGET: SelectMode()
 }
-
-class MainViewModel: ViewModel() {
+@HiltViewModel
+class MainViewModel @Inject constructor(var deeplRepo: DeeplRepo): ViewModel() {
     var displayOutput by mutableStateOf("")
     var displayInput by mutableStateOf("")
     var isTranslatSuccess by mutableStateOf(false)
@@ -56,29 +58,25 @@ class MainViewModel: ViewModel() {
     // Crawler 方式
     private fun translateByCrawler(originWord: String, translateFlow: MutableSharedFlow<String>){
         viewModelScope.launch(Dispatchers.IO){
-            val body = "{\"jsonrpc\":\"2.0\",\"method\": \"LMT_handle_jobs\",\"params\":{\"jobs\":[{\"kind\":\"default\",\"raw_en_sentence\":\"$originWord\",\"raw_en_context_before\":[],\"raw_en_context_after\":[],\"preferred_num_beams\":4,\"quality\":\"fast\"}],\"lang\":{\"user_preferred_langs\":[\"PL\",\"RU\",\"FR\",\"SL\",\"DE\",\"JA\",\"HU\",\"IT\",\"EN\",\"ZH\",\"ES\"],\"source_lang_user_selected\":\"${sourceLanguageCode}\",\"target_lang\":\"${targetLanguageCode}\"},\"priority\":-1,\"commonJobParams\":{\"formality\":null},\"timestamp\":1621181157844},\"id\":54450008}"
-            val mediaType = "application/json; charset=utf-8".toMediaType()
-
-            val request = Request.Builder()
-                .url("https://www2.deepl.com/jsonrpc")
-                .post(body.toRequestBody(mediaType))
-                .build()
-
             try{
-                client.newCall(request).execute().use { response ->
-                    if(response.code == 200){
-                        if (!response.isSuccessful) throw IOException("Unexpected code $response")
-                        val jsonObject = response.body?.let { Json.parseToJsonElement(it.string()) }
-                        val results = jsonObject?.jsonObject?.get("result")
-                        val translations = results?.jsonObject?.get("translations")
+                deeplRepo.translateByCrawler(originWord, sourceLanguageCode, targetLanguageCode) { response ->
+                        if (response.code == 200) {
+                            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+                            val jsonObject =
+                                response.body?.let { Json.parseToJsonElement(it.string()) }
+                            val results = jsonObject?.jsonObject?.get("result")
+                            val translations = results?.jsonObject?.get("translations")
 
-                        val newObject = translations?.jsonArray?.get(0)
-                        val beams = newObject?.jsonObject?.get("beams")
+                            val newObject = translations?.jsonArray?.get(0)
+                            val beams = newObject?.jsonObject?.get("beams")
 
-                        val resultArray = beams?.jsonArray
-                        isTranslatSuccess = true
-                        translateFlow.emit(resultArray!!.get(0).jsonObject["postprocessed_sentence"].toString().replace("\"", ""))
-                    } else translateFlow.emit("似乎网络出现了点问题～")
+                            val resultArray = beams?.jsonArray
+                            isTranslatSuccess = true
+                            translateFlow.emit(
+                                resultArray!!.get(0).jsonObject["postprocessed_sentence"].toString()
+                                    .replace("\"", "")
+                            )
+                        } else translateFlow.emit("似乎网络出现了点问题～")
                 }
             }catch(e: IOException){
 
@@ -89,32 +87,24 @@ class MainViewModel: ViewModel() {
     // API 方式
     private fun translateByAPI(originWord: String, translateFlow: MutableSharedFlow<String>){
         viewModelScope.launch(Dispatchers.IO){
-
-            val url: String = if(sourceLanguageCode == "") "https://api-free.deepl.com/v2/translate?auth_key=&text=$originWord&detected_source_language=auto&target_lang=${targetLanguageCode}"
-            else "https://api-free.deepl.com/v2/translate?auth_key=&text=$originWord&source_lang=${sourceLanguageCode}&target_lang=${targetLanguageCode}"
-
-            val request = Request.Builder()
-                .url(url)
-                .build()
-
             try{
-                client.newCall(request).execute().use { response ->
-                    if(response.code == 200){
-                        val jsonObject = response.body?.let { Json.parseToJsonElement(it.string()) }
-                        val text = jsonObject?.jsonObject?.get("translations")?.jsonArray?.get(0)?.jsonObject?.get("text")
+                deeplRepo.translateByAPI(originWord, sourceLanguageCode, targetLanguageCode) { response ->
+                        if(response.code == 200){
+                            val jsonObject = response.body?.let { Json.parseToJsonElement(it.string()) }
+                            val text = jsonObject?.jsonObject?.get("translations")?.jsonArray?.get(0)?.jsonObject?.get("text")
 
-                        val source_lang = jsonObject?.jsonObject?.get("translations")?.jsonArray?.get(0)?.jsonObject?.get("detected_source_language").toString().replace("\"", "")
+                            val source_lang = jsonObject?.jsonObject?.get("translations")?.jsonArray?.get(0)?.jsonObject?.get("detected_source_language").toString().replace("\"", "")
 
-//                        if(sourceLanguageCode == ""){
-//                            sourceLanguageCode = allLangs.values.first {
-//                                it == source_lang
+//                            if(sourceLanguageCode == ""){
+//                                sourceLanguageCode = allLangs.values.first {
+//                                    it == source_lang
+//                                }
 //                            }
-//                        }
-                        translateFlow.emit(text.toString().replace("\"", ""))
-                        isTranslatSuccess = true
-                    } else{
-                        translateByCrawler(originWord, translateFlow)
-                    }
+                            translateFlow.emit(text.toString().replace("\"", ""))
+                            isTranslatSuccess = true
+                        } else{
+                            translateByCrawler(originWord, translateFlow)
+                        }
                 }
             }catch(e: IOException){
 
